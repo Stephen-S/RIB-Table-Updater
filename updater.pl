@@ -341,7 +341,7 @@ sub applyUpdates_compare {
 
 	}
 	close(OUTPUTFILE);
-
+	print "\nCompressing...";
 	zip($outfile);
 	unlink $outfile;
 }
@@ -459,7 +459,7 @@ sub applyUpdates {
 
 	}
 	close(OUTPUTFILE);
-
+	print "\nCompressing...";
 	zip($outfile);
 	unlink $outfile;
 }
