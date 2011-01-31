@@ -3,7 +3,7 @@
 use Compress::Zlib;
 use Time::Local;
 
-print "For help, ./updater.pl -h\nVersion 1.3\n\n";
+print "For help, ./updater.pl -h\nVersion 1.3.1\n\n";
 $ABSOLUTE = 0;
 $COMP = 0;
 $BGPDUMP = "bgpdump";
@@ -66,6 +66,7 @@ $stop_time = 0;
 
 #hash for the stop times to be read in from the final, official rib table dump
 %stoptimes = ();
+%drifts    = ();
 
 main($byear, $bmonth, $eyear, $emonth);
 
@@ -86,8 +87,8 @@ sub main {
 		}
 	}else{
 		while (1) {
-			if ( $byear == 2010 && $bmonth == 7 ) {
-				exit;
+			if ( $byear == 2011 && $bmonth == 1 ) {
+			        exit;
 			}
 			if ( $bmonth <= 9 ) {
 				$fixMonth = "0" . $bmonth;
@@ -102,7 +103,6 @@ sub main {
 			}else {
 				$bmonth++;
 			}
-	
 			foreach $dir ( sort { $a <=> $b } ( keys(%drifts) ) ) {
 				$toscan = $drifts{$dir}->{'dir'}."/".$drifts{$dir}->{'drift'};
 				$teststr = $drifts{$dir}->{'drift'};
@@ -110,9 +110,10 @@ sub main {
 				$yr = substr($teststr,0,4);
 				$mn = substr($teststr,4,2);
 				$dy = substr($teststr,6,2);
-				print "/usr/bin/perl updater.pl -d $toscan -a $yr $mn $dy -bgp bgpdump_arcturus -t 00 00 00\n";
-				#applyUpdates($toscan);
-				#print $toscan."\n";
+				#print "/usr/bin/perl updater.pl -d $toscan -a $yr $mn $dy -bgp bgpdump_arcturus -t 00 00 00\n";
+				print $toscan."\n";
+				applyUpdates($toscan);
+				
 			}
 			%drifts = ();
 		}
@@ -328,17 +329,21 @@ sub applyUpdates_compare {
 								$tabledump{$key}->{'info'} = &stripUpdate($updates_string);
 							}	
 						}				
-				} 
+				      } 
 			}
+		        @update = []; 
 		}
+	print "\ntest\n";
+	undef %stoptimes; 
+	print "Undeffed..\n";
+	
 	$outfile = $updateDir . "/" . "rib.0000.update.txt";
 	open OUTPUTFILE, ">",
 	  $outfile || die "Failed to open " . $outfile . " for writing!";
-
+	
 	#Loop through the hash and print everything to the output file.
 	foreach $key ( sort { $a <=> $b } ( keys(%tabledump) ) ) {
 		print OUTPUTFILE $tabledump{$key}->{'info'};
-
 	}
 	close(OUTPUTFILE);
 	print "\nCompressing...";
@@ -462,26 +467,29 @@ sub applyUpdates {
 	print "\nCompressing...";
 	zip($outfile);
 	unlink $outfile;
+	@rib = [];
+	@update = [];
+	@updates = [];
+	@dump = [];
+	@info_from_hash = [];
+	%tabledump = ();
 }
 
 #Loops through the entire contents of our downloaded files
 #Retrieves all subdirectories with .drift
 sub getDriftDirs {
-
+  
 	my $year  = $_[0];
 	my $month = $_[1];
-
 	#my %hash_copy = ();
-	#It's easiest to scan for all of the drift directorys and place the
+	#It's easiest to scan for all of the drift directoris and place the
 	#absolute path in a hash array for later retrieval
 
 	#base directoryt on Netwisdom where all of the RIBs are located
 	$basedir = $DIRECTORY . $year . "/" . $month;
 	$dir = $basedir . "/" . $COLLECTOR;    #the collectors directory
 	opendir( temp, $dir );                        #open that directory
-
-	@dirList =
-	  grep( /drift/, readdir(temp) );    #and get the directory of all drifts
+	@dirList =  grep( /drift/, readdir(temp) );    #and get the directory of all drifts
 
 	foreach (@dirList) {
 		if ( !( exists( $drifts{$_} ) ) ) {
