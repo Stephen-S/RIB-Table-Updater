@@ -3,7 +3,7 @@
 use Compress::Zlib;
 use Time::Local;
 
-print "For help, ./updater.pl -h\nVersion 1.3.1\n\n";
+print "For help, ./updater.pl -h\nVersion 1.3.2\n\n";
 $ABSOLUTE = 0;
 $COMP = 0;
 $BGPDUMP = "bgpdump";
@@ -110,8 +110,6 @@ sub main {
 				$yr = substr($teststr,0,4);
 				$mn = substr($teststr,4,2);
 				$dy = substr($teststr,6,2);
-				#print "/usr/bin/perl updater.pl -d $toscan -a $yr $mn $dy -bgp bgpdump_arcturus -t 00 00 00\n";
-				print $toscan."\n";
 				applyUpdates($toscan);
 				
 			}
