@@ -1,12 +1,30 @@
 #!/usr/bin/perl
 
+use strict;
+
 use Compress::Zlib;
 use Time::Local;
 
-print "For help, ./updater.pl -h\nVersion 1.3.2\n\n";
-$ABSOLUTE = 0;
-$COMP = 0;
-$BGPDUMP = "bgpdump";
+print "For help, ./updater.pl -h\nVersion 1.3.4\n\n";
+#globals
+our $ABSOLUTE = 0;
+our $COMP = 0;
+our $COMPARE = "";
+our $BGPDUMP = "bgpdump";
+our $DIRECTORY = "";
+our $COLLECTOR = "";
+our $YEAR = "";
+our $MONTH = "";
+our $DAY = "";
+our $STOP_HOUR = "";
+our $STOP_MINUTE = "";
+our $STOP_SECOND = "";
+#locals
+my $argnum = "";
+my $byear = "";
+my $bmonth = "";
+my $eyear = "";
+my $emonth = "";
 
 
 foreach $argnum (0..$#ARGV){
@@ -57,16 +75,22 @@ foreach $argnum (0..$#ARGV){
 	} 
 }
 
-if((($eyear eq $byear) && ($emonth lt $bmonth)) || ($eyear lt $byear)){
+if((($eyear == $byear) && ($emonth < $bmonth)) || ($eyear lt $byear)){
 		print "Check your syntax\n";
-		print_help();
+		if($emonth < $bmonth){
+		  print "$emonth < $bmonth\n";
+		}
+		if($eyear == $byear){
+		  print "$eyear == $byear\n";
+		}
+		  print_help();
 	}
 	
-$stop_time = 0;
+our $stop_time = 0;
 
 #hash for the stop times to be read in from the final, official rib table dump
-%stoptimes = ();
-%drifts    = ();
+our %stoptimes = ();
+our %drifts    = ();
 
 main($byear, $bmonth, $eyear, $emonth);
 
@@ -74,7 +98,13 @@ sub main {
 
 	#simply looping through the dates
 
-	
+	my $fixMonth = "";
+	my $dir = "";
+	my $toscan = "";
+	my $teststr = "";
+	my $yr = 0;
+	my $mn = 0;
+	my $dy = 0;
 	if($ABSOLUTE==1){
 		
 	
@@ -206,7 +236,7 @@ sub zip {
 sub openCompare {
 	my $final_rib = $_[0];
 	chomp($final_rib);
-	$ribcommand    = "./".$BGPDUMP." -m -t dump ".$final_rib." |";
+	my $ribcommand    = "./".$BGPDUMP." -m -t dump ".$final_rib." |";
 	
 	print "Executing $ribcommand\n";
 	
@@ -215,9 +245,9 @@ sub openCompare {
 	while (<BGPDUMP>) {
 
 		#for each line, split on the "|" delimeter and store it in an array
-		@dump = split( /\|/, $_ );
-		$key = @dump[3] . "|" . @dump[4] . "|" . @dump[5];
-		$ts = @dump[1];
+	        my @dump = split( /\|/, $_ );
+		my $key = $dump[3] . "|" . $dump[4] . "|" . $dump[5];
+		my $ts = $dump[1];
 
 		chomp($key);
 		if ( !( exists( $stoptimes{$key} ) ) ) {
@@ -235,26 +265,26 @@ sub applyUpdates_compare {
 
 	#the update directory as given from the main subroutine and open it
 	my $updateDir = $_[0];
-	opendir( temp, $updateDir );
+	opendir(dir_temp, $updateDir );
 
 #Need to get the rib file from the directory just opened and give it the full path
-	@rib     = grep( /rib/, readdir(temp) );
-	$ribfile = @rib[0];
-	$ribfile = $updateDir . "/" . $ribfile;
+	my @rib     = grep( /rib/, readdir(dir_temp) );
+	my $ribfile = $rib[0];
+        $ribfile = $updateDir . "/" . $ribfile;
 
 	print "Appyling updates to $ribfile until the comparison stop\n";
 
 	#Do the same with all of the updates, but storing them in an array
-	opendir( temp, $updateDir );
-	@updates = sort( grep( /updates/, readdir(temp) ) );
+	opendir( dir_temp, $updateDir );
+	my @updates = sort( grep( /updates/, readdir(dir_temp) ) );
 	
 #Since the output is obtained from STDOUT, base commands are created for later access
-	$ribcommand_base    = "./".$BGPDUMP." -m -t dump ";
-	$updatecommand_base = "./".$BGPDUMP." -m ";
-	$ribcommand         = $ribcommand_base . $ribfile . " |";
+	my $ribcommand_base    = "./".$BGPDUMP." -m -t dump ";
+	my $updatecommand_base = "./".$BGPDUMP." -m ";
+	my $ribcommand         = $ribcommand_base . $ribfile . " |";
 
 	#Hash array for storing the output from the table dump file
-	%tabledump = ();
+	my %tabledump = ();
 	#open the rib file and pipe the output to this script
 	print "opening ribfile, " . $ribfile . "\n";
 	open( BGPDUMP, $ribcommand ) || die "Failed at " . $ribcommand . "!\n";
@@ -263,8 +293,8 @@ sub applyUpdates_compare {
 	while (<BGPDUMP>) {
 
 		#for each line, split on the "|" delimeter and store it in an array
-		@dump = split( /\|/, $_ );
-		$key = @dump[3] . "|" . @dump[4] . "|" . @dump[5];
+		my @dump = split( /\|/, $_ );
+		my $key = $dump[3] . "|" . $dump[4] . "|" . $dump[5];
 		chomp($key);
 
 	#The prefix that will be used as the key to the hash table is always the [5] element.
@@ -282,8 +312,8 @@ sub applyUpdates_compare {
 	foreach (@updates) {
 
 		#Open the update and create the update command
-		$updatefile    = $updateDir . "/" . $_;
-		$updatecommand = $updatecommand_base . $updatefile . " |";
+		my $updatefile    = $updateDir . "/" . $_;
+		my $updatecommand = $updatecommand_base . $updatefile . " |";
 
 		#Pipe the output and capture
 		print "opening update, " . $updatefile . "\n\n";
@@ -294,16 +324,16 @@ sub applyUpdates_compare {
 # "|" delimeter. We need to be able to analyze the action, either Apply or Withdraw
 # We need the timestamp for comparison, and the "interior key" for the values in the
 # hash table are the peer_ip, peer_as, and prefix
-			@update         = split( /\|/, $_ );
-			$updates_string = $_;
-			$timestamp      = @update[1];
-			$action         = @update[2];
-			$peer_ip        = @update[3];
-			$peer_as        = @update[4];
-			$prefix         = @update[5];
-			$nexthop	= @update[8];
-			
-			$key = $peer_ip . "|" . $peer_as . "|" . $prefix;
+		        my @update         = split( /\|/, $_ );
+			my $updates_string = $_;
+			my $timestamp      = $update[1];
+			my $action         = $update[2];
+			my $peer_ip        = $update[3];
+			my $peer_as        = $update[4];
+			my $prefix         = $update[5];
+			my $nexthop	   = $update[8];
+			my $keystop        = 0;
+			my $key = $peer_ip . "|" . $peer_as . "|" . $prefix;
 			chomp($prefix);
 			chomp($key);
 			
@@ -315,32 +345,29 @@ sub applyUpdates_compare {
 					}
 						if(!($timestamp gt $keystop)){
 							if (exists( $tabledump{$key})) {
-									if (!($timestamp lt $hash_timestamp)) {	
-										if ( $action eq "W" ) {								
-											delete $tabledump{$key};
-										} elsif ( $action eq "A" ) {
-											$tabledump{$key}->{'info'} = &stripUpdate($updates_string);	
-										}
-									}
+								if ( $action eq "W" ) {								
+									delete $tabledump{$key};
+								} elsif ( $action eq "A" ) {
+									$tabledump{$key}->{'info'} = &stripUpdate($updates_string);	
+								}									
 							}							
 							if ( !exists( $tabledump{$key} ) && ($action eq "A")) {
 								$tabledump{$key}->{'info'} = &stripUpdate($updates_string);
 							}	
 						}				
-				      } 
+				      }
 			}
-		        @update = []; 
+		         
 		}
 	print "\ntest\n";
 	undef %stoptimes; 
 	print "Undeffed..\n";
 	
-	$outfile = $updateDir . "/" . "rib.0000.update.txt";
-	open OUTPUTFILE, ">",
-	  $outfile || die "Failed to open " . $outfile . " for writing!";
+	my $outfile = $updateDir . "/" . "rib.0000.update.txt";
+	open OUTPUTFILE, ">", $outfile || die "Failed to open " . $outfile . " for writing!";
 	
 	#Loop through the hash and print everything to the output file.
-	foreach $key ( sort { $a <=> $b } ( keys(%tabledump) ) ) {
+	foreach my $key ( sort { $a <=> $b } ( keys(%tabledump) ) ) {
 		print OUTPUTFILE $tabledump{$key}->{'info'};
 	}
 	close(OUTPUTFILE);
@@ -352,29 +379,29 @@ sub applyUpdates {
 
 	#the update directory as given from the main subroutine and open it
 	my $updateDir = $_[0];
-	opendir( temp, $updateDir );
+	opendir( dir_temp, $updateDir );
 
-	$multicast		= 0;
+	my $multicast		= 0;
 
 #Need to get the rib file from the directory just opened and give it the full path
-	@rib     = grep( /rib/, readdir(temp) );
-	$ribfile = @rib[0];
+	my @rib     = grep( /rib/, readdir(dir_temp) );
+	my $ribfile = $rib[0];
 	$ribfile = $updateDir . "/" . $ribfile;
 
 	print "Appyling updates to $ribfile until $stop_time\n";
 
 	#Do the same with all of the updates, but storing them in an array
-	opendir( temp, $updateDir );
-	@updates = sort( grep( /updates/, readdir(temp) ) );
+	opendir( dir_temp, $updateDir );
+	my @updates = sort( grep( /updates/, readdir(dir_temp) ) );
 	
 
 #Since the output is obtained from STDOUT, base commands are created for later access
-	$ribcommand_base    = "./".$BGPDUMP." -m -t dump ";
-	$updatecommand_base = "./".$BGPDUMP." -m ";
-	$ribcommand         = $ribcommand_base . $ribfile . " |";
+	my $ribcommand_base    = "./".$BGPDUMP." -m -t dump ";
+	my $updatecommand_base = "./".$BGPDUMP." -m ";
+	my $ribcommand         = $ribcommand_base . $ribfile . " |";
 
 	#Hash array for storing the output from the table dump file
-	%tabledump = ();
+	my %tabledump = ();
 	#open the rib file and pipe the output to this script
 	print "opening ribfile, " . $ribfile . "\n";
 	open( BGPDUMP, $ribcommand ) || die "Failed at " . $ribcommand . "!\n";
@@ -383,8 +410,8 @@ sub applyUpdates {
 	while (<BGPDUMP>) {
 
 		#for each line, split on the "|" delimeter and store it in an array
-		@dump = split( /\|/, $_ );
-		$key = @dump[3] . "|" . @dump[4] . "|" . @dump[5];
+		my @dump = split( /\|/, $_ );
+		my $key = $dump[3] . "|" . $dump[4] . "|" . $dump[5];
 		chomp($key);
 
 	#The prefix that will be used as the key to the hash table is always the [5] element.
@@ -402,34 +429,33 @@ sub applyUpdates {
 	foreach (@updates) {
 
 		#Open the update and create the update command
-		$updatefile    = $updateDir . "/" . $_;
-		$updatecommand = $updatecommand_base . $updatefile . " |";
+		my $updatefile    = $updateDir . "/" . $_;
+		my $updatecommand = $updatecommand_base . $updatefile . " |";
 
 		#Pipe the output and capture
 		print "opening update, " . $updatefile . "\n\n";
-		open( UPDATE, $updatecommand )
-		  || die "Failed at " . $updatecommand . "!\n";
+		open( UPDATE, $updatecommand ) || die "Failed at " . $updatecommand . "!\n";
 		while (<UPDATE>) {
 #Loop through the update, line by line, and break the lines up based on the
 # "|" delimeter. We need to be able to analyze the action, either Apply or Withdraw
 # We need the timestamp for comparison, and the "interior key" for the values in the
 # hash table are the peer_ip, peer_as, and prefix
-			@update         = split( /\|/, $_ );
-			$updates_string = $_;
-			$timestamp      = @update[1];
-			$action         = @update[2];
-			$peer_ip        = @update[3];
-			$peer_as        = @update[4];
-			$prefix         = @update[5];
-			$nexthop	= @update[8];
+			my @update         = split( /\|/, $_ );
+			my $updates_string = $_;
+			my $timestamp      = $update[1];
+			my $action         = $update[2];
+			my $peer_ip        = $update[3];
+			my $peer_as        = $update[4];
+			my $prefix         = $update[5];
+			my $nexthop	= $update[8];
 			
-			$key = $peer_ip . "|" . $peer_as . "|" . $prefix;
+			my $key = $peer_ip . "|" . $peer_as . "|" . $prefix;
 			chomp($prefix);
 			chomp($key);
 			
 			if(!($updates_string =~ m/M4/)){
-			@info_from_hash = split( /\|/, $tabledump{$key}->{'info'} );
-				$hash_timestamp = @info_from_hash[1];
+			my @info_from_hash = split( /\|/, $tabledump{$key}->{'info'} );
+			my $hash_timestamp = $info_from_hash[1];
 					if(!($timestamp gt $stop_time)){
 						if (exists( $tabledump{$key})) {
 								if (!($timestamp lt $hash_timestamp) || ($timestamp eq $hash_timestamp)) {	
@@ -448,17 +474,12 @@ sub applyUpdates {
 			}
 		}
 
-	$outfile = $updateDir . "/" . "rib.0000.update.txt";
-	open OUTPUTFILE, ">",
-	  $outfile || die "Failed to open " . $outfile . " for writing!";
+	my $outfile = $updateDir . "/" . "rib.0000.update.txt";
+	open OUTPUTFILE, ">",  $outfile || die "Failed to open " . $outfile . " for writing!";
 
 	#Loop through the hash and print everything to the output file.
-	foreach $key ( sort { $a <=> $b } ( keys(%tabledump) ) ) {
+	foreach my $key ( sort { $a <=> $b } ( keys(%tabledump) ) ) {
 		print OUTPUTFILE $tabledump{$key}->{'info'};
-
-	}
-	foreach $key ( sort { $a <=> $b } ( keys(%blacklist) ) ) {
-		print $tabledump{$key}->{'key'};
 
 	}
 	close(OUTPUTFILE);
@@ -466,10 +487,6 @@ sub applyUpdates {
 	zip($outfile);
 	unlink $outfile;
 	@rib = [];
-	@update = [];
-	@updates = [];
-	@dump = [];
-	@info_from_hash = [];
 	%tabledump = ();
 }
 
@@ -479,15 +496,13 @@ sub getDriftDirs {
   
 	my $year  = $_[0];
 	my $month = $_[1];
-	#my %hash_copy = ();
-	#It's easiest to scan for all of the drift directoris and place the
-	#absolute path in a hash array for later retrieval
+	my $dir = "";
 
 	#base directoryt on Netwisdom where all of the RIBs are located
-	$basedir = $DIRECTORY . $year . "/" . $month;
-	$dir = $basedir . "/" . $COLLECTOR;    #the collectors directory
-	opendir( temp, $dir );                        #open that directory
-	@dirList =  grep( /drift/, readdir(temp) );    #and get the directory of all drifts
+	my $basedir = $DIRECTORY . $year . "/" . $month;
+	my $dir = $basedir . "/" . $COLLECTOR;    #the collectors directory
+	opendir( dir_temp, $dir );                        #open that directory
+	my @dirList =  grep( /drift/, readdir(dir_temp) );    #and get the directory of all drifts
 
 	foreach (@dirList) {
 		if ( !( exists( $drifts{$_} ) ) ) {
@@ -497,7 +512,7 @@ sub getDriftDirs {
 	}
 }
 sub convert{
-	@date = (substr($_[0],0,4), substr($_[0],4,2), substr($_[0],6,2));
+	my @date = (substr($_[0],0,4), substr($_[0],4,2), substr($_[0],6,2));
 
 	return @date;
 }
