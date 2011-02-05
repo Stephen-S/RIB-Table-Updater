@@ -4,12 +4,10 @@ use strict;
 use Time::Local;
 use DateTime;
 
-print "For help, ./updater.pl -h\nVersion 1.4.3\n\n";
 #globals
-our $ABSOLUTE = 0;
 our $BGPDUMP = "bgpdump";
 our $DIRECTORY = "";
-our $COLLECTOR = "";
+
 our $YEAR = "";
 our $MONTH = "";
 our $DAY = "";
@@ -18,116 +16,39 @@ our $STOP_MINUTE = "";
 our $STOP_SECOND = "";
 #locals
 my $argnum = "";
-my $byear = "";
-my $bmonth = "";
-my $eyear = "";
-my $emonth = "";
-
 
 foreach $argnum (0..$#ARGV){
 	if($ARGV[$argnum] eq "-d"){
 		$DIRECTORY = $ARGV[$argnum + 1];
 	}
 	
-	if($ARGV[$argnum] eq "-a"){
-		$ABSOLUTE = 1;
+	if($ARGV[$argnum] eq "-t"){
 		$YEAR = $ARGV[$argnum + 1];
 		$MONTH = $ARGV[$argnum + 2];
 		$DAY = $ARGV[$argnum + 3];
-	}
-	if($ARGV[$argnum] eq "-b"){
-		$byear  = $ARGV[$argnum + 1];
-		$bmonth = $ARGV[$argnum + 2];
-	}
-	
-	if($ARGV[$argnum] eq "-e"){
-		$eyear  = $ARGV[$argnum + 1];
-		$emonth = $ARGV[$argnum + 2];
-	}
-
-	if($ARGV[$argnum] eq "-c"){
-		$COLLECTOR = $ARGV[$argnum + 1];
+		$STOP_HOUR = $ARGV[$argnum + 4];
+		$STOP_MINUTE = $ARGV[$argnum + 5];
+		$STOP_SECOND = $ARGV[$argnum + 6];
 	}	
 	if(($ARGV[$argnum] eq "-h") || ($ARGV[$argnum] eq "-?")){
 		
 		print_help();
-	}
-	if($ARGV[$argnum] eq "-t"){
-		$STOP_HOUR = $ARGV[$argnum + 1];
-		$STOP_MINUTE = $ARGV[$argnum + 2];
-		$STOP_SECOND = $ARGV[$argnum + 3];
 	}	
 	if($ARGV[$argnum] eq "-bgp"){
 		$BGPDUMP = $ARGV[$argnum + 1];
 	}	
 }
-
-if((($eyear == $byear) && ($emonth < $bmonth)) || ($eyear lt $byear)){
-		print "Check your syntax\n";
-		if($emonth < $bmonth){
-		  print "$emonth < $bmonth\n";
-		}
-		if($eyear == $byear){
-		  print "$eyear == $byear\n";
-		}
-		  print_help();
-	}
 	
 our $stop_time = 0;
 
 #hash for the stop times to be read in from the final, official rib table dump
-our %drifts    = ();
 our %tabledump = ();
-main($byear, $bmonth, $eyear, $emonth);
 
 sub main {
 
-	#simply looping through the dates
-
-	my $fixMonth = "";
-	my $dir = "";
-	my $toscan = "";
-	my $teststr = "";
-	my $toscan_upper = "";
-	my $toscan_lower = "";
-	my $yr = 0;
-	my $mn = 0;
-	my $dy = 0;
-	if($ABSOLUTE==1){
-		$stop_time = getLastSecond(convert($YEAR.$MONTH.$DAY));
-		print "Ignoring all updates after timestamp:$stop_time. for $YEAR $MONTH $DAY\n\n";
-		applyUpdates($DIRECTORY);
-       	}else{
-		while (1) {
-			if ( $byear == 2011 && $bmonth == 1 ) {
-			        exit;
-			}
-			if ( $bmonth <= 9 ) {
-				$fixMonth = "0" . $bmonth;
-			}
-			else {
-				$fixMonth = $bmonth;
-			}
-			getDriftDirs( $byear, $fixMonth );
-			if($bmonth == 12){
-				$byear++;
-				$bmonth = 1;
-			}else {
-				$bmonth++;
-			}
-			foreach $dir ( sort { $a <=> $b } ( keys(%drifts) ) ) {
-				$toscan_upper = $drifts{$dir}->{'dir'};
-				$toscan_lower = $drifts{$dir}->{'drift'};
-				$teststr = $drifts{$dir}->{'drift'};
-				$stop_time = getLastSecond(convert($teststr));
-				$yr = substr($teststr,0,4);
-				$mn = substr($teststr,4,2);
-				$dy = substr($teststr,6,2);
-				applyUpdates($toscan_upper, $toscan_lower);		  
-			}
-			%drifts = ();
-		}
-	}
+	$stop_time = getLastSecond(convert($YEAR.$MONTH.$DAY));
+	print "Ignoring all updates after timestamp:$stop_time. for $YEAR $MONTH $DAY\n\n";
+	applyUpdates($DIRECTORY);
 }
 sub getLastSecond{
 	#This function is used to get the last update before the stop time.
@@ -159,16 +80,14 @@ sub getDateTime{
 
 sub print_help{
 	print "\nOptions:";
+	print "BGP Table Updater - Version 1.4.3\n";
+	print "\n-h [help]      :\tThis screen";
 	print "\n-d [directory] :\tMain directory where all of the tables are kept.\n\t\t\tbgpdump should be placed here.";
-	print "\n-b [begin date]:\tStarting year followed by month.";
-	print "\n-e [end date]  :\tEnd year followed by month.";
-	print "\n-c [collector] :\tName of the collecter";
 	print "\n-t [timestamp] :\tThe time (inclusive) in HH MM to apply the update ";
 	print "\n-bgp [filename]:\tThe filename of bgpdump \n\t\t\tDefault: 'bgpdump'";
 	print "\n-a\t       :\tDirectory given with -d will be taken as the absolute path and only updates in that\n\t\t\tdirectory will be applied to the rib in that directory.";
 	print "\n\nExample:";
-	print "\n\t./Updater.pl -bgp bgpdump_x86 -d /home/rib_tables -c linx -b 2007 5 -e 2007 4 -t 12 45\n";
-	print "\n\t./Updater.pl -d /home/rib_tables -a 2007 5 3 -t 12 45\n";
+	print "\n\t./Updater.pl -d /home/rib_tables ta 2007 05 03 12 45\n";
 	
 	print "\n\nPlease make sure you have the latest version of bgpdump from http://www.ris.ripe.net/source/\n";
 	exit;
@@ -194,9 +113,7 @@ sub stripUpdate {
 sub applyUpdates {
 
 	#the update directory as given from the main subroutine and open it
-	my $baseDir  = $_[0];
-	my $driftDir = $_[1];
-	my $updateDir = $baseDir."/".$driftDir;
+	my $updateDir  = $_[0];
 	opendir( dir_temp, $updateDir );
 
 
@@ -265,7 +182,7 @@ sub applyUpdates {
 			my $peer_ip        = $update[3];
 			my $peer_as        = $update[4];
 			my $prefix         = $update[5];
-			my $nexthop	= $update[8];
+			my $nexthop        = $update[8];
 			
 			my $key = $peer_ip . "|" . $peer_as . "|" . $prefix;
 			chomp($prefix);
@@ -292,7 +209,7 @@ sub applyUpdates {
 			}
 		}
 	my $dt = getDateTime($stop_time);
-	my $outfile = $baseDir . "/" . "rib.".$dt.".0000.update.gz";
+	my $outfile = $updateDir . "/" . "rib.".$dt.".0000.update.gz";
 	open(OUTPUTFILE, "|gzip -1 >$outfile");
 
 	#Loop through the hash and print everything to the output file.
