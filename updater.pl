@@ -1,15 +1,12 @@
 #!/usr/bin/perl
 
 use strict;
-
-use Compress::Zlib;
 use Time::Local;
+use DateTime;
 
-print "For help, ./updater.pl -h\nVersion 1.3.4\n\n";
+print "For help, ./updater.pl -h\nVersion 1.4.3\n\n";
 #globals
 our $ABSOLUTE = 0;
-our $COMP = 0;
-our $COMPARE = "";
 our $BGPDUMP = "bgpdump";
 our $DIRECTORY = "";
 our $COLLECTOR = "";
@@ -59,20 +56,10 @@ foreach $argnum (0..$#ARGV){
 		$STOP_HOUR = $ARGV[$argnum + 1];
 		$STOP_MINUTE = $ARGV[$argnum + 2];
 		$STOP_SECOND = $ARGV[$argnum + 3];
-	}
-	if($ARGV[$argnum] eq "-c"){
-		$COLLECTOR = $ARGV[$argnum + 1];
-	}
-	
+	}	
 	if($ARGV[$argnum] eq "-bgp"){
 		$BGPDUMP = $ARGV[$argnum + 1];
 	}	
-	
-	if($ARGV[$argnum] eq "-comp"){
-		#file to compare to, I.E., we're opening this one up 
-		$COMPARE = $ARGV[$argnum + 1];
-		$COMP = 1;
-	} 
 }
 
 if((($eyear == $byear) && ($emonth < $bmonth)) || ($eyear lt $byear)){
@@ -89,9 +76,8 @@ if((($eyear == $byear) && ($emonth < $bmonth)) || ($eyear lt $byear)){
 our $stop_time = 0;
 
 #hash for the stop times to be read in from the final, official rib table dump
-our %stoptimes = ();
 our %drifts    = ();
-
+our %tabledump = ();
 main($byear, $bmonth, $eyear, $emonth);
 
 sub main {
@@ -102,20 +88,16 @@ sub main {
 	my $dir = "";
 	my $toscan = "";
 	my $teststr = "";
+	my $toscan_upper = "";
+	my $toscan_lower = "";
 	my $yr = 0;
 	my $mn = 0;
 	my $dy = 0;
 	if($ABSOLUTE==1){
-		
-	
 		$stop_time = getLastSecond(convert($YEAR.$MONTH.$DAY));
 		print "Ignoring all updates after timestamp:$stop_time. for $YEAR $MONTH $DAY\n\n";
-		if($COMP==1){
-			applyUpdates_compare($DIRECTORY);
-		} else {
-			applyUpdates($DIRECTORY);
-		}
-	}else{
+		applyUpdates($DIRECTORY);
+       	}else{
 		while (1) {
 			if ( $byear == 2011 && $bmonth == 1 ) {
 			        exit;
@@ -134,23 +116,19 @@ sub main {
 				$bmonth++;
 			}
 			foreach $dir ( sort { $a <=> $b } ( keys(%drifts) ) ) {
-				$toscan = $drifts{$dir}->{'dir'}."/".$drifts{$dir}->{'drift'};
+				$toscan_upper = $drifts{$dir}->{'dir'};
+				$toscan_lower = $drifts{$dir}->{'drift'};
 				$teststr = $drifts{$dir}->{'drift'};
 				$stop_time = getLastSecond(convert($teststr));
 				$yr = substr($teststr,0,4);
 				$mn = substr($teststr,4,2);
 				$dy = substr($teststr,6,2);
-				applyUpdates($toscan);
-				
+				applyUpdates($toscan_upper, $toscan_lower);		  
 			}
 			%drifts = ();
 		}
 	}
-
-	print "\n";
 }
-
-
 sub getLastSecond{
 	#This function is used to get the last update before the stop time.
 	#Reasoning: User may want to update a rib table to 00:00, but the two closest
@@ -161,6 +139,22 @@ sub getLastSecond{
 	my $lmday = $_[2];
 	my $time = timegm($STOP_SECOND,$STOP_MINUTE,$STOP_HOUR,$lmday,$lmon,$lyear);
 	return $time;
+}
+sub getDateTime{
+        my $dt = DateTime->from_epoch( epoch => $stop_time );
+
+	my $year   = $dt->year;
+	my $month  = $dt->month; # 1-12 - you can also use '$dt->mon'
+	if($month <= 9){
+	  $month = "0$month";
+	}
+	my $day    = $dt->day; # 1-31 - also 'day_of_month', 'mday'
+	if($day <= 9){
+	  $day = "0$day";
+	}
+
+	return $year.$month.$day;
+
 }
 
 sub print_help{
@@ -175,7 +169,6 @@ sub print_help{
 	print "\n\nExample:";
 	print "\n\t./Updater.pl -bgp bgpdump_x86 -d /home/rib_tables -c linx -b 2007 5 -e 2007 4 -t 12 45\n";
 	print "\n\t./Updater.pl -d /home/rib_tables -a 2007 5 3 -t 12 45\n";
-	print "\n\t./Updater.pl -bgp bgpdump_x86 -d /home/rib_tables -c linx -b 2007 5 -e 2007 4 -t 12 45 -comp /home/rib_tables/rib_file\n";
 	
 	print "\n\nPlease make sure you have the latest version of bgpdump from http://www.ris.ripe.net/source/\n";
 	exit;
@@ -198,190 +191,14 @@ sub stripUpdate {
 	$_[0] =~ s/RI//;
 	return ( $_[0] );
 }
-
-sub zip {
-#Stolen from the web somewhere
-	my $file = $_[0];
-
-	if ( !$file ) {
-		print "$0 <file>\n";
-		exit;
-	}
-
-	my $gzfile = $file . ".gz";
-
-	open( FILE, $file );
-	binmode FILE;
-
-	my $buf;
-	my $gz = gzopen( $gzfile, "wb" );
-	if ( !$gz ) {
-		print "Unable to write $gzfile $!\n";
-		exit;
-	}
-	else {
-		while ( my $by = sysread( FILE, $buf, 4096 ) ) {
-			if ( !$gz->gzwrite($buf) ) {
-				print "Zlib error writing to $gzfile: $gz->gzerror\n";
-				exit;
-			}
-		}
-		$gz->gzclose();
-		print "'$file' GZipped to '$gzfile'\n";
-	}
-}
-
-#This is for the testing of the script
-#The absolute path of the rib must be given.
-sub openCompare {
-	my $final_rib = $_[0];
-	chomp($final_rib);
-	my $ribcommand    = "./".$BGPDUMP." -m -t dump ".$final_rib." |";
-	
-	print "Executing $ribcommand\n";
-	
-	open( BGPDUMP, $ribcommand ) || die "Failed at " . $ribcommand . "!\n";
-	#Loop through the output's lines
-	while (<BGPDUMP>) {
-
-		#for each line, split on the "|" delimeter and store it in an array
-	        my @dump = split( /\|/, $_ );
-		my $key = $dump[3] . "|" . $dump[4] . "|" . $dump[5];
-		my $ts = $dump[1];
-
-		chomp($key);
-		if ( !( exists( $stoptimes{$key} ) ) ) {
-			$stoptimes{$key}->{'TS'} = $ts; #adding the final timestamp
-		}
-		
-		
-	}
-		
-}
-
-sub applyUpdates_compare {
-	
-	openCompare($COMPARE);
-
-	#the update directory as given from the main subroutine and open it
-	my $updateDir = $_[0];
-	opendir(dir_temp, $updateDir );
-
-#Need to get the rib file from the directory just opened and give it the full path
-	my @rib     = grep( /rib/, readdir(dir_temp) );
-	my $ribfile = $rib[0];
-        $ribfile = $updateDir . "/" . $ribfile;
-
-	print "Appyling updates to $ribfile until the comparison stop\n";
-
-	#Do the same with all of the updates, but storing them in an array
-	opendir( dir_temp, $updateDir );
-	my @updates = sort( grep( /updates/, readdir(dir_temp) ) );
-	
-#Since the output is obtained from STDOUT, base commands are created for later access
-	my $ribcommand_base    = "./".$BGPDUMP." -m -t dump ";
-	my $updatecommand_base = "./".$BGPDUMP." -m ";
-	my $ribcommand         = $ribcommand_base . $ribfile . " |";
-
-	#Hash array for storing the output from the table dump file
-	my %tabledump = ();
-	#open the rib file and pipe the output to this script
-	print "opening ribfile, " . $ribfile . "\n";
-	open( BGPDUMP, $ribcommand ) || die "Failed at " . $ribcommand . "!\n";
-
-	#Loop through the output's lines
-	while (<BGPDUMP>) {
-
-		#for each line, split on the "|" delimeter and store it in an array
-		my @dump = split( /\|/, $_ );
-		my $key = $dump[3] . "|" . $dump[4] . "|" . $dump[5];
-		chomp($key);
-
-	#The prefix that will be used as the key to the hash table is always the [5] element.
-	
-	#If this prefix does not already exist in the hash array, add it and set the "info"
-	#attribute equal to the line
-	#
-	#If it does exist in there, just append the current information
-		if ( !( exists( $tabledump{$key} ) ) ) {
-			$tabledump{$key}->{'info'} = $_;
-		}
-	}
-	
-	#All of the updates in the array are processed here
-	foreach (@updates) {
-
-		#Open the update and create the update command
-		my $updatefile    = $updateDir . "/" . $_;
-		my $updatecommand = $updatecommand_base . $updatefile . " |";
-
-		#Pipe the output and capture
-		print "opening update, " . $updatefile . "\n\n";
-		open( UPDATE, $updatecommand )
-		  || die "Failed at " . $updatecommand . "!\n";
-		while (<UPDATE>) {
-#Loop through the update, line by line, and break the lines up based on the
-# "|" delimeter. We need to be able to analyze the action, either Apply or Withdraw
-# We need the timestamp for comparison, and the "interior key" for the values in the
-# hash table are the peer_ip, peer_as, and prefix
-		        my @update         = split( /\|/, $_ );
-			my $updates_string = $_;
-			my $timestamp      = $update[1];
-			my $action         = $update[2];
-			my $peer_ip        = $update[3];
-			my $peer_as        = $update[4];
-			my $prefix         = $update[5];
-			my $nexthop	   = $update[8];
-			my $keystop        = 0;
-			my $key = $peer_ip . "|" . $peer_as . "|" . $prefix;
-			chomp($prefix);
-			chomp($key);
-			
-			if(!($updates_string =~ m/M4/)){
-					if(exists($stoptimes{$key})){
-						$keystop = $stoptimes{$key}->{"TS"};
-					}else {						
-						$keystop = $stop_time;						
-					}
-						if(!($timestamp gt $keystop)){
-							if (exists( $tabledump{$key})) {
-								if ( $action eq "W" ) {								
-									delete $tabledump{$key};
-								} elsif ( $action eq "A" ) {
-									$tabledump{$key}->{'info'} = &stripUpdate($updates_string);	
-								}									
-							}							
-							if ( !exists( $tabledump{$key} ) && ($action eq "A")) {
-								$tabledump{$key}->{'info'} = &stripUpdate($updates_string);
-							}	
-						}				
-				      }
-			}
-		         
-		}
-	print "\ntest\n";
-	undef %stoptimes; 
-	print "Undeffed..\n";
-	
-	my $outfile = $updateDir . "/" . "rib.0000.update.txt";
-	open OUTPUTFILE, ">", $outfile || die "Failed to open " . $outfile . " for writing!";
-	
-	#Loop through the hash and print everything to the output file.
-	foreach my $key ( sort { $a <=> $b } ( keys(%tabledump) ) ) {
-		print OUTPUTFILE $tabledump{$key}->{'info'};
-	}
-	close(OUTPUTFILE);
-	print "\nCompressing...";
-	zip($outfile);
-	unlink $outfile;
-}
 sub applyUpdates {
 
 	#the update directory as given from the main subroutine and open it
-	my $updateDir = $_[0];
+	my $baseDir  = $_[0];
+	my $driftDir = $_[1];
+	my $updateDir = $baseDir."/".$driftDir;
 	opendir( dir_temp, $updateDir );
 
-	my $multicast		= 0;
 
 #Need to get the rib file from the directory just opened and give it the full path
 	my @rib     = grep( /rib/, readdir(dir_temp) );
@@ -400,13 +217,14 @@ sub applyUpdates {
 	my $updatecommand_base = "./".$BGPDUMP." -m ";
 	my $ribcommand         = $ribcommand_base . $ribfile . " |";
 
-	#Hash array for storing the output from the table dump file
-	my %tabledump = ();
+
 	#open the rib file and pipe the output to this script
 	print "opening ribfile, " . $ribfile . "\n";
 	open( BGPDUMP, $ribcommand ) || die "Failed at " . $ribcommand . "!\n";
 
 	#Loop through the output's lines
+	#Hash array for storing the output from the table dump file
+	%tabledump = ();
 	while (<BGPDUMP>) {
 
 		#for each line, split on the "|" delimeter and store it in an array
@@ -421,7 +239,7 @@ sub applyUpdates {
 	#
 	#If it does exist in there, just append the current information
 		if ( !( exists( $tabledump{$key} ) ) ) {
-			$tabledump{$key}->{'info'} = $_;
+			$tabledump{$key} = $_;
 		}
 	}
 	
@@ -454,7 +272,7 @@ sub applyUpdates {
 			chomp($key);
 			
 			if(!($updates_string =~ m/M4/)){
-			my @info_from_hash = split( /\|/, $tabledump{$key}->{'info'} );
+			  my @info_from_hash = split( /\|/, $tabledump{$key} );
 			my $hash_timestamp = $info_from_hash[1];
 					if(!($timestamp gt $stop_time)){
 						if (exists( $tabledump{$key})) {
@@ -462,32 +280,32 @@ sub applyUpdates {
 									if ( $action eq "W" ) {								
 												delete $tabledump{$key};
 									} elsif ( $action eq "A" ) {
-										$tabledump{$key}->{'info'} = &stripUpdate($updates_string);	
+										$tabledump{$key} = &stripUpdate($updates_string);	
 									}
 								}
 						}							
 						if ( !exists( $tabledump{$key} ) && ($action eq "A")) {
-							$tabledump{$key}->{'info'} = &stripUpdate($updates_string);
+							$tabledump{$key} = &stripUpdate($updates_string);
 						}	
 					}				
 				} 
 			}
 		}
-
-	my $outfile = $updateDir . "/" . "rib.0000.update.txt";
-	open OUTPUTFILE, ">",  $outfile || die "Failed to open " . $outfile . " for writing!";
+	my $dt = getDateTime($stop_time);
+	my $outfile = $baseDir . "/" . "rib.".$dt.".0000.update.gz";
+	open(OUTPUTFILE, "|gzip -1 >$outfile");
 
 	#Loop through the hash and print everything to the output file.
-	foreach my $key ( sort { $a <=> $b } ( keys(%tabledump) ) ) {
-		print OUTPUTFILE $tabledump{$key}->{'info'};
+	foreach my $loop ( sort { $a <=> $b } ( keys(%tabledump) ) ) {
+		print OUTPUTFILE $tabledump{$loop};
+		#delete $tabledump{$loop};
 
 	}
 	close(OUTPUTFILE);
-	print "\nCompressing...";
-	zip($outfile);
-	unlink $outfile;
+	#zip($outfile);
+	#unlink $outfile;
 	@rib = [];
-	%tabledump = ();
+
 }
 
 #Loops through the entire contents of our downloaded files
@@ -516,8 +334,5 @@ sub convert{
 
 	return @date;
 }
-
-
-
 
 
