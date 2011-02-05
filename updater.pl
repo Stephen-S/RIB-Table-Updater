@@ -38,18 +38,14 @@ foreach $argnum (0..$#ARGV){
 		$BGPDUMP = $ARGV[$argnum + 1];
 	}	
 }
-	
-our $stop_time = 0;
-
+our $stop_time = 0;	
+print "$YEAR $MONTH $DAY $STOP_HOUR $STOP_MINUTE $STOP_SECOND $DIRECTORY\n";
 #hash for the stop times to be read in from the final, official rib table dump
 our %tabledump = ();
+$stop_time = getLastSecond(convert($YEAR.$MONTH.$DAY));
 
-sub main {
+applyUpdates($DIRECTORY);
 
-	$stop_time = getLastSecond(convert($YEAR.$MONTH.$DAY));
-	print "Ignoring all updates after timestamp:$stop_time. for $YEAR $MONTH $DAY\n\n";
-	applyUpdates($DIRECTORY);
-}
 sub getLastSecond{
 	#This function is used to get the last update before the stop time.
 	#Reasoning: User may want to update a rib table to 00:00, but the two closest
@@ -80,14 +76,13 @@ sub getDateTime{
 
 sub print_help{
 	print "\nOptions:";
-	print "BGP Table Updater - Version 1.4.3\n";
+	print "BGP Table Updater - Version 1.6\n";
 	print "\n-h [help]      :\tThis screen";
 	print "\n-d [directory] :\tMain directory where all of the tables are kept.\n\t\t\tbgpdump should be placed here.";
 	print "\n-t [timestamp] :\tThe time (inclusive) in HH MM to apply the update ";
 	print "\n-bgp [filename]:\tThe filename of bgpdump \n\t\t\tDefault: 'bgpdump'";
-	print "\n-a\t       :\tDirectory given with -d will be taken as the absolute path and only updates in that\n\t\t\tdirectory will be applied to the rib in that directory.";
 	print "\n\nExample:";
-	print "\n\t./Updater.pl -d /home/rib_tables ta 2007 05 03 12 45\n";
+	print "\n\t./Updater.pl -d /home/rib_tables -t 2007 05 03 12 45 00\n";
 	
 	print "\n\nPlease make sure you have the latest version of bgpdump from http://www.ris.ripe.net/source/\n";
 	exit;
@@ -225,27 +220,6 @@ sub applyUpdates {
 
 }
 
-#Loops through the entire contents of our downloaded files
-#Retrieves all subdirectories with .drift
-sub getDriftDirs {
-  
-	my $year  = $_[0];
-	my $month = $_[1];
-	my $dir = "";
-
-	#base directoryt on Netwisdom where all of the RIBs are located
-	my $basedir = $DIRECTORY . $year . "/" . $month;
-	my $dir = $basedir . "/" . $COLLECTOR;    #the collectors directory
-	opendir( dir_temp, $dir );                        #open that directory
-	my @dirList =  grep( /drift/, readdir(dir_temp) );    #and get the directory of all drifts
-
-	foreach (@dirList) {
-		if ( !( exists( $drifts{$_} ) ) ) {
-			$drifts{$_}->{'dir'} = $dir;
-			$drifts{$_}->{'drift'} = $_;
-		}
-	}
-}
 sub convert{
 	my @date = (substr($_[0],0,4), substr($_[0],4,2), substr($_[0],6,2));
 

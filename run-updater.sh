@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/local/bin/bash
 #Function: To aid in the execution of the updater perl script
 #
 #Arguments Start-Year Start-Day End-Year End-Day Collector
@@ -14,6 +14,10 @@ startmonth=$2
 endyear=$3
 endmonth=$4
 collector=$5
+
+#For the directory loop
+timestopMon=0
+timestopDay=0
 
 #Input Checks
 if [ $startyear -gt $endyear ]
@@ -42,7 +46,12 @@ do
 	    fixmon=$mon;
 	fi
 	
-	echo $basedir$year/$fixmon/$collector;
+	for dir in $(ls $basedir$year/$fixmon/$collector | grep drift)
+	do
+	    echo "./updater.pl -d $basedir$year/$fixmon/$collector/$dir -t ${dir:0:4} ${dir:4:2} ${dir:6:2} 00 00 00";
+	    ./updater.pl -d $basedir$year/$fixmon/$collector/$dir -t ${dir:0:4} ${dir:4:2} ${dir:6:2} 00 00 00
+	    mv $basedir$year/$fixmon/$collector/$dir/rib.${dir:0:4}${dir:4:2}${dir:6:2}.0000.update.gz $basedir$year/$fixmon/$collector/rib.${dir:0:4}${dir:4:2}${dir:6:2}.0000.update.gz
+	done
     done
 done
 
