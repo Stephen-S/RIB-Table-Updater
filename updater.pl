@@ -1,5 +1,8 @@
 #!/usr/bin/perl
 
+#Author: Stephen Smith: sgsmith1 at memphis.edu
+#Code is provided as-is
+#Use as you wish but keep the author's name
 use strict;
 use Time::Local;
 use DateTime;
@@ -39,7 +42,6 @@ foreach $argnum (0..$#ARGV){
 	}	
 }
 our $stop_time = 0;	
-print "$YEAR $MONTH $DAY $STOP_HOUR $STOP_MINUTE $STOP_SECOND $DIRECTORY\n";
 #hash for the stop times to be read in from the final, official rib table dump
 our %tabledump = ();
 $stop_time = getLastSecond(convert($YEAR.$MONTH.$DAY));
@@ -93,6 +95,8 @@ sub stripUpdate {
 	#When an update is processed, the string needs to be changed to reflect
 	#the typical BGP attributes, so the following are changed with
 	#regular expressions
+        #Some of these options are written specifically for a modified version of 
+        #BGPDump but should not affect results.
 
 	$_[0] =~ s/BGP4MP/TABLE_DUMP/;
 	$_[0] =~ s/\|A\|/\|B\|/;
@@ -116,8 +120,6 @@ sub applyUpdates {
 	my @rib     = grep( /rib/, readdir(dir_temp) );
 	my $ribfile = $rib[0];
 	$ribfile = $updateDir . "/" . $ribfile;
-
-	print "Appyling updates to $ribfile until $stop_time\n";
 
 	#Do the same with all of the updates, but storing them in an array
 	opendir( dir_temp, $updateDir );
@@ -163,13 +165,12 @@ sub applyUpdates {
 		my $updatecommand = $updatecommand_base . $updatefile . " |";
 
 		#Pipe the output and capture
-		print "opening update, " . $updatefile . "\n\n";
 		open( UPDATE, $updatecommand ) || die "Failed at " . $updatecommand . "!\n";
 		while (<UPDATE>) {
-#Loop through the update, line by line, and break the lines up based on the
-# "|" delimeter. We need to be able to analyze the action, either Apply or Withdraw
-# We need the timestamp for comparison, and the "interior key" for the values in the
-# hash table are the peer_ip, peer_as, and prefix
+		  #Loop through the update, line by line, and break the lines up based on the
+		  # "|" delimeter. We need to be able to analyze the action, either Apply or Withdraw
+		  # We need the timestamp for comparison, and the "interior key" for the values in the
+		  # hash table are the peer_ip, peer_as, and prefix
 			my @update         = split( /\|/, $_ );
 			my $updates_string = $_;
 			my $timestamp      = $update[1];
@@ -214,10 +215,6 @@ sub applyUpdates {
 
 	}
 	close(OUTPUTFILE);
-	#zip($outfile);
-	#unlink $outfile;
-	@rib = [];
-
 }
 
 sub convert{
