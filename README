@@ -1,5 +1,7 @@
-This was written for a specific purpose and there are no guarantees places on this perl script.
+This was written for a specific purpose and there are no guarantees placed on this perl script. Licenses are not a concern, but please leave the original author's name intact.
 
-Also of importance is that this is the first perl I've really done, but I think that some may find it useful to apply updates to RIB tables in the future. Please note that this script consumes a lot of memory, but it's validity has been checked thoroughly.
+Please note that this script will consume a lot of memory depending on the RIB table size. It was not designed to be efficient but it has been validated by thorough checking.
 
-The shell script should really be ignored, but it was added in with the perl script as a request.
+The shell script should really be ignored, but it was added in with the perl script as a request for the specific project.
+
+Original Author: Stpehen Smith <sgsmith1 at memphis.edu>
