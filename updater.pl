@@ -41,12 +41,15 @@ foreach $argnum (0..$#ARGV){
 		$BGPDUMP = $ARGV[$argnum + 1];
 	}	
 }
+sleep(5);
 our $stop_time = 0;	
 #hash for the stop times to be read in from the final, official rib table dump
 our %tabledump = ();
 $stop_time = getLastSecond(convert($YEAR.$MONTH.$DAY));
 
 applyUpdates($DIRECTORY);
+
+sleep(5);
 
 sub getLastSecond{
 	#This function is used to get the last update before the stop time.
@@ -78,7 +81,7 @@ sub getDateTime{
 
 sub print_help{
 	print "\nOptions:";
-	print "BGP Table Updater - Version 1.6\n";
+	print "BGP Table Updater - Version 1.6.1\n";
 	print "\n-h [help]      :\tThis screen";
 	print "\n-d [directory] :\tMain directory where all of the tables are kept.\n\t\t\tbgpdump should be placed here.";
 	print "\n-t [timestamp] :\tThe time (inclusive) in HH MM to apply the update ";
@@ -133,7 +136,6 @@ sub applyUpdates {
 
 
 	#open the rib file and pipe the output to this script
-	print "opening ribfile, " . $ribfile . "\n";
 	open( BGPDUMP, $ribcommand ) || die "Failed at " . $ribcommand . "!\n";
 
 	#Loop through the output's lines
