@@ -81,7 +81,7 @@ sub getDateTime{
 
 sub print_help{
 	print "\nOptions:";
-	print "BGP Table Updater - Version 1.6.2\n";
+	print "BGP Table Updater - Version 1.6.3\n";
 	print "\n-h [help]      :\tThis screen";
 	print "\n-d [directory] :\tMain directory where all of the tables are kept.\n\t\t\tbgpdump should be placed here.";
 	print "\n-t [timestamp] :\tThe time (inclusive) in HH MM to apply the update ";
@@ -217,9 +217,10 @@ sub applyUpdates {
 	#Loop through the hash and print everything to the output file.
 	foreach my $loop ( sort { $a <=> $b } ( keys(%tabledump) ) ) {
 		print OUTPUTFILE $tabledump{$loop};
-		#delete $tabledump{$loop};
+		
 
 	}
+	undef %tabledump;
 	close(OUTPUTFILE);
 }
 
