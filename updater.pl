@@ -211,8 +211,8 @@ sub applyUpdates {
 		close( UPDATE );
 		}
 	my $dt = getDateTime($stop_time);
-	my $outfile = $updateDir . "/" . "rib.".$dt.".0000.update.gz";
-	open(OUTPUTFILE, "|gzip -1 >$outfile");
+	my $outfile = $updateDir . "/" . "rib.".$dt.".0000.update";
+	open(OUTPUTFILE, "$outfile");
 
 	#Loop through the hash and print everything to the output file.
 	foreach my $loop ( sort { $a <=> $b } ( keys(%tabledump) ) ) {
