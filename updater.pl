@@ -41,7 +41,7 @@ foreach $argnum (0..$#ARGV){
 		$BGPDUMP = $ARGV[$argnum + 1];
 	}	
 }
-sleep(5);
+sleep(10);
 our $stop_time = 0;	
 #hash for the stop times to be read in from the final, official rib table dump
 our %tabledump = ();
@@ -81,7 +81,7 @@ sub getDateTime{
 
 sub print_help{
 	print "\nOptions:";
-	print "BGP Table Updater - Version 1.6.1\n";
+	print "BGP Table Updater - Version 1.6.2\n";
 	print "\n-h [help]      :\tThis screen";
 	print "\n-d [directory] :\tMain directory where all of the tables are kept.\n\t\t\tbgpdump should be placed here.";
 	print "\n-t [timestamp] :\tThe time (inclusive) in HH MM to apply the update ";
@@ -121,12 +121,14 @@ sub applyUpdates {
 
 #Need to get the rib file from the directory just opened and give it the full path
 	my @rib     = grep( /rib/, readdir(dir_temp) );
+	closedir( dir_temp );
 	my $ribfile = $rib[0];
 	$ribfile = $updateDir . "/" . $ribfile;
 
 	#Do the same with all of the updates, but storing them in an array
 	opendir( dir_temp, $updateDir );
 	my @updates = sort( grep( /updates/, readdir(dir_temp) ) );
+	closedir( dir_temp );
 	
 
 #Since the output is obtained from STDOUT, base commands are created for later access
@@ -158,7 +160,7 @@ sub applyUpdates {
 			$tabledump{$key} = $_;
 		}
 	}
-	
+	close( BGPDUMP );
 	#All of the updates in the array are processed here
 	foreach (@updates) {
 

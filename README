@@ -4,4 +4,4 @@ Please note that this script will consume a lot of memory depending on the RIB t
 
 The shell script should really be ignored, but it was added in with the perl script as a request for the specific project.
 
-Original Author: Stpehen Smith <sgsmith1 at memphis.edu>
+Original Author: Stephen Smith <sgsmith1 at memphis.edu>
