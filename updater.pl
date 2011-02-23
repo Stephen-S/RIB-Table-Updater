@@ -207,6 +207,8 @@ sub applyUpdates {
 					}				
 				} 
 			}
+
+		close( UPDATE );
 		}
 	my $dt = getDateTime($stop_time);
 	my $outfile = $updateDir . "/" . "rib.".$dt.".0000.update.gz";
