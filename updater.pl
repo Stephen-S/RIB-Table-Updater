@@ -204,12 +204,11 @@ sub applyUpdates {
 						if ( !exists( $tabledump{$key} ) && ($action eq "A")) {
 							$tabledump{$key} = &stripUpdate($updates_string);
 						}	
-					}				
+					}
+			        undef @info_from_hash;
 				}
 			undef @update;
-			undef @info_from_hash;
 			}
-
 		close( UPDATE );
 		}
 	undef @rib;
