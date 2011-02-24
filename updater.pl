@@ -205,14 +205,19 @@ sub applyUpdates {
 							$tabledump{$key} = &stripUpdate($updates_string);
 						}	
 					}				
-				} 
+				}
+			undef @update;
+			undef @info_from_hash;
 			}
 
 		close( UPDATE );
 		}
+	undef @rib;
+	undef @updates;
+
 	my $dt = getDateTime($stop_time);
-	my $outfile = $updateDir . "/" . "rib.".$dt.".0000.update";
-	open(OUTPUTFILE,">$outfile");
+	my $outfile = $updateDir . "/" . "rib.".$dt.".0000.update.gz";
+	open(OUTPUTFILE,"|gzip -1 >$outfile");
 
 	#Loop through the hash and print everything to the output file.
 	foreach my $loop ( sort { $a <=> $b } ( keys(%tabledump) ) ) {
